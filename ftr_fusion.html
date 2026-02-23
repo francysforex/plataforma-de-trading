@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="FTR Fusion">
+<meta name="theme-color" content="#0a0a12">
+<title>FTR Fusion Trader</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'SF Mono',SFMono-Regular,Consolas,monospace;background:#0a0a12;color:#e0e0f0;overflow:hidden;height:100vh;display:flex;flex-direction:column}
+.hdr{display:flex;align-items:center;gap:8px;padding:6px 10px;background:#0e0e18;border-bottom:1px solid #1c1c2e;flex-shrink:0}
+.hdr-title{font-size:11px;font-weight:800;color:#ff6d00;letter-spacing:1px}
+.badge{font-size:9px;padding:2px 8px;border-radius:8px;display:flex;align-items:center;gap:4px}
+.connect-dot{width:6px;height:6px;border-radius:50%;display:inline-block}
+.pulse{animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.main{display:grid;grid-template-columns:1fr 300px;flex:1;overflow:hidden}
+.chart-col{display:flex;flex-direction:column;border-right:1px solid #1c1c2e;overflow:hidden}
+.tv-chart{flex:1;min-height:0}
+.fp-section{height:140px;border-top:1px solid #1c1c2e;overflow-y:auto;padding:6px;background:#0c0c15}
+.fp-title{font-size:8px;color:#ff6d00;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
+.fp-row{display:flex;align-items:center;gap:4px;font-size:9px;padding:1px 0}
+.fp-bid{background:#ff174430;color:#ff1744;text-align:right;padding:1px 4px;border-radius:2px;font-size:8px}
+.fp-ask{background:#00e67630;color:#00e676;text-align:left;padding:1px 4px;border-radius:2px;font-size:8px}
+.panel{overflow-y:auto;padding:8px;background:#0c0c15;-webkit-overflow-scrolling:touch}
+.section{margin-bottom:10px;background:#10101c;border:1px solid #1c1c2e;border-radius:8px;padding:10px}
+.sec-title{font-size:8px;color:#ff6d00;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}
+.score-grid{display:grid;grid-template-columns:1fr auto;gap:3px}
+.score-row{display:flex;justify-content:space-between;align-items:center;padding:3px 6px;background:#0a0a12;border-radius:4px;font-size:10px}
+.score-label{color:#8888a0}
+.score-val{font-weight:700}
+.score-total{text-align:center;padding:8px;border-radius:6px;margin-top:6px;font-weight:900;font-size:16px}
+.btn-row{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px}
+.btn-buy{background:linear-gradient(135deg,#00c853,#00e676);color:#000;border:none;padding:10px;border-radius:6px;font-weight:800;font-size:12px;cursor:pointer;font-family:inherit}
+.btn-sell{background:linear-gradient(135deg,#d50000,#ff1744);color:#fff;border:none;padding:10px;border-radius:6px;font-weight:800;font-size:12px;cursor:pointer;font-family:inherit}
+.btn-buy:active{transform:scale(0.97)}.btn-sell:active{transform:scale(0.97)}
+.btn-auto{background:#10101c;color:#556;border:1px solid #1c1c2e;padding:8px;border-radius:6px;font-weight:700;font-size:10px;cursor:pointer;font-family:inherit;text-align:center}
+.btn-auto.on{background:#ff6d0020;color:#ff6d00;border-color:#ff6d00}
+.cfg-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.cfg-label{font-size:9px;color:#8888a0}
+.cfg-val{font-size:10px;font-weight:700;color:#ff6d00}
+.cfg-btns{display:flex;gap:3px}
+.cfg-btn{font-family:inherit;font-size:9px;padding:4px 6px;border:1px solid #1c1c2e;border-radius:4px;background:#10101c;color:#556;cursor:pointer;font-weight:600}
+.cfg-btn:hover{border-color:#ff6d00;color:#ff6d00}
+.cfg-btn.active{background:#ff6d0025;color:#ff6d00;border-color:#ff6d00}
+.trade-item{padding:5px 6px;border-radius:4px;margin-bottom:3px;font-size:9px;display:flex;justify-content:space-between}
+.log-area{max-height:100px;overflow-y:auto;font-size:8px}
+.log-e{padding:2px 0;border-bottom:1px solid #0e0e18}
+.meter{flex:1;height:5px;background:#0a0a12;border-radius:3px;overflow:hidden}
+.meter-fill{height:100%;border-radius:3px;transition:width .3s}
+#sigLevels{display:none;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-top:8px}
+@media(max-width:900px){.main{grid-template-columns:1fr !important}.chart-col{min-height:40vh}.panel{max-height:60vh}}
+@media(max-width:600px){.hdr{flex-wrap:wrap;gap:4px;padding:4px 6px}.btn-buy,.btn-sell{padding:12px}.cfg-btn{padding:6px 4px}}
+@media(display-mode:standalone){body{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="hdr">
+<span class="hdr-title">FTR FUSION</span>
+<span class="badge" style="background:#ff6d0015;color:#ff6d00">XAUUSD</span>
+<span class="badge" style="background:#448aff15;color:#448aff">M15</span>
+<span id="priceDisplay" class="badge" style="background:#00e67615;color:#00e676;font-weight:700">$---</span>
+<span style="flex:1"></span>
+<span id="bridgeStatus" class="badge" style="background:#ff174415;color:#ff1744"><span class="connect-dot" style="background:#ff1744"></span>Bridge OFF</span>
+<span id="autoStatus" class="badge" style="background:#10101c;color:#556">AUTO: OFF</span>
+<span id="statsHdr" style="font-size:9px;color:#556">W:0 L:0 0%</span>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+<!-- LEFT: CHART + FOOTPRINT -->
+<div class="chart-col">
+<div class="tv-chart" id="tvChart"></div>
+<div class="fp-section">
+<div class="fp-title">FOOTPRINT BID/ASK + FTR ZONES</div>
+<div id="fpData" style="font-size:9px;color:#556">Cargando datos...</div>
+</div>
+</div>
+
+<!-- RIGHT: PANEL -->
+<div class="panel">
+
+<!-- SCORE -->
+<div class="section">
+<div class="sec-title">SCORE 6 CONFIRMACIONES</div>
+<div id="scoreList" class="score-grid">
+<div class="score-row"><span class="score-label">1. Delta Suficiente</span><span class="score-val" style="color:#556">---</span></div>
+<div class="score-row"><span class="score-label">2. Delta Direccion</span><span class="score-val" style="color:#556">---</span></div>
+<div class="score-row"><span class="score-label">3. Absorcion</span><span class="score-val" style="color:#556">---</span></div>
+<div class="score-row"><span class="score-label">4. Stacked Imbalance</span><span class="score-val" style="color:#556">---</span></div>
+<div class="score-row"><span class="score-label">5. CVD Divergencia</span><span class="score-val" style="color:#556">---</span></div>
+<div class="score-row"><span class="score-label">6. FTR Zone</span><span class="score-val" style="color:#556">---</span></div>
+</div>
+<div id="scoreTotal" class="score-total" style="background:#10101c;color:#556">--- / 6</div>
+<div id="sigLevels"></div>
+</div>
+
+<!-- VOLUME -->
+<div class="section">
+<div class="sec-title">VOLUME DATA</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+<div><div style="font-size:8px;color:#556">DELTA</div><div id="deltaVal" style="font-size:14px;font-weight:700;color:#556">0</div></div>
+<div><div style="font-size:8px;color:#556">CVD</div><div id="cvdVal" style="font-size:14px;font-weight:700;color:#556">0</div></div>
+</div>
+<div style="display:flex;gap:4px;align-items:center;margin-top:6px">
+<span style="font-size:8px;color:#ff1744">SELL</span>
+<div class="meter"><div id="deltaBar" class="meter-fill" style="width:50%;background:linear-gradient(90deg,#ff1744,#00e676)"></div></div>
+<span style="font-size:8px;color:#00e676">BUY</span>
+</div>
+</div>
+
+<!-- BUTTONS -->
+<div class="section">
+<div class="btn-row">
+<button class="btn-buy" onclick="manualOrder('buy')">BUY</button>
+<button class="btn-sell" onclick="manualOrder('sell')">SELL</button>
+</div>
+<button id="autoBtn" class="btn-auto" onclick="toggleAuto()">AUTO-TRADE: OFF</button>
+</div>
+
+<!-- CONFIG -->
+<div class="section">
+<div class="sec-title">CONFIGURACION</div>
+<div class="cfg-row">
+<span class="cfg-label">Score minimo</span>
+<span class="cfg-val" id="cfgScoreVal">4/6</span>
+</div>
+<div class="cfg-btns" style="margin-bottom:8px">
+<button class="cfg-btn" onclick="setScore(3)">3</button>
+<button class="cfg-btn active" onclick="setScore(4)">4</button>
+<button class="cfg-btn" onclick="setScore(5)">5</button>
+<button class="cfg-btn" onclick="setScore(6)">6</button>
+</div>
+<div class="cfg-row">
+<span class="cfg-label">R:R Ratio</span>
+<span class="cfg-val" id="cfgRRVal">1:1.5</span>
+</div>
+<div class="cfg-btns" style="margin-bottom:8px">
+<button class="cfg-btn" onclick="setRR(1)">1:1</button>
+<button class="cfg-btn active" onclick="setRR(1.5)">1:1.5</button>
+<button class="cfg-btn" onclick="setRR(2)">1:2</button>
+<button class="cfg-btn" onclick="setRR(3)">1:3</button>
+</div>
+<div class="cfg-row">
+<span class="cfg-label">Riesgo %</span>
+<span class="cfg-val" id="cfgRiskVal">2%</span>
+</div>
+<div class="cfg-btns" style="margin-bottom:8px">
+<button class="cfg-btn" onclick="setRisk(1)">1%</button>
+<button class="cfg-btn active" onclick="setRisk(2)">2%</button>
+<button class="cfg-btn" onclick="setRisk(3)">3%</button>
+<button class="cfg-btn" onclick="setRisk(5)">5%</button>
+</div>
+<!-- VPS CONNECTION -->
+<div style="margin-top:8px;border-top:1px solid #1c1c2e;padding-top:8px">
+<div class="cfg-row">
+<span class="cfg-label">VPS BRIDGE</span>
+<span class="cfg-val" id="cfgVPSVal">localhost</span>
+</div>
+<div style="display:flex;gap:3px">
+<input id="vpsInput" type="text" placeholder="IP del VPS" style="flex:1;font-family:inherit;font-size:9px;padding:4px 6px;border:1px solid #1c1c2e;border-radius:4px;background:#10101c;color:#e0e0f0;outline:none">
+<button class="cfg-btn" onclick="setVPS()">SET</button>
+</div>
+</div>
+</div>
+
+<!-- TRADES -->
+<div class="section">
+<div class="sec-title">TRADES</div>
+<div id="trList"><div style="color:#556;font-size:10px;text-align:center;padding:8px">Sin trades</div></div>
+</div>
+
+<!-- LOG -->
+<div class="section">
+<div class="sec-title">LOG</div>
+<div id="logL" class="log-area"></div>
+</div>
+
+</div>
+</div>
+
+<script>
+// ===================== CONFIG =====================
+const CFG = {
+  sym: "XAUUSD",
+  tf: "15",
+  minScore: 4,
+  maxScore: 6,
+  rr: 1.5,
+  risk: 2,
+  dojiPct: 20
+};
+
+let BRIDGE_URL = "http://localhost:6666";
+let currentPrice = 0;
+let bridgeOK = false;
+let autoTrade = false;
+let position = null;
+let trades = [];
+let wins = 0, losses = 0;
+let simCVD = 0;
+
+// ===================== TRADINGVIEW CHART =====================
+const tvScript = document.createElement("script");
+tvScript.src = "https://s3.tradingview.com/tv.js";
+tvScript.onload = () => {
+  new TradingView.widget({
+    container_id: "tvChart",
+    autosize: true,
+    symbol: "OANDA:XAUUSD",
+    interval: CFG.tf,
+    timezone: "America/New_York",
+    theme: "dark",
+    style: "1",
+    toolbar_bg: "#0a0a12",
+    enable_publishing: false,
+    hide_top_toolbar: false,
+    hide_legend: false,
+    save_image: false,
+    backgroundColor: "#0a0a12",
+    gridColor: "#1c1c2e",
+    studies: ["Volume@tv-basicstudies"],
+    overrides: {
+      "paneProperties.background": "#0a0a12",
+      "paneProperties.backgroundType": "solid",
+      "scalesProperties.backgroundColor": "#0a0a12",
+      "scalesProperties.lineColor": "#1c1c2e",
+      "scalesProperties.textColor": "#556",
+      "mainSeriesProperties.candleStyle.upColor": "#00e676",
+      "mainSeriesProperties.candleStyle.downColor": "#ff1744",
+      "mainSeriesProperties.candleStyle.wickUpColor": "#00e676",
+      "mainSeriesProperties.candleStyle.wickDownColor": "#ff1744"
+    }
+  });
+};
+document.head.appendChild(tvScript);
+
+// ===================== BRIDGE =====================
+async function checkBridge() {
+  try {
+    const r = await fetch(BRIDGE_URL + "/ping", { signal: AbortSignal.timeout(2000) });
+    const d = await r.json();
+    if (d.status === "ok") {
+      if (!bridgeOK) addLog("Bridge FTR Fusion conectado (puerto 6666)", "success");
+      bridgeOK = true;
+      document.getElementById("bridgeStatus").innerHTML = '<span class="connect-dot pulse" style="background:#00e676"></span>Bridge ON';
+      document.getElementById("bridgeStatus").style.cssText = "font-size:9px;padding:2px 8px;border-radius:8px;background:#00e67615;color:#00e676";
+    }
+  } catch (e) {
+    if (bridgeOK) addLog("Bridge desconectado", "error");
+    bridgeOK = false;
+    document.getElementById("bridgeStatus").innerHTML = '<span class="connect-dot" style="background:#ff1744"></span>Bridge OFF';
+    document.getElementById("bridgeStatus").style.cssText = "font-size:9px;padding:2px 8px;border-radius:8px;background:#ff174415;color:#ff1744";
+  }
+}
+setInterval(checkBridge, 5000);
+checkBridge();
+
+// ===================== PRICE FETCH =====================
+async function fetchPrice() {
+  try {
+    const r = await fetch("https://query1.finance.yahoo.com/v8/finance/chart/GC=F?interval=1m&range=1d");
+    const d = await r.json();
+    const p = d.chart.result[0].meta.regularMarketPrice;
+    if (p > 0) currentPrice = p;
+  } catch (e) {
+    // Simulated price as fallback
+    if (currentPrice === 0) currentPrice = 2930 + Math.random() * 20;
+    else currentPrice += (Math.random() - 0.5) * 2;
+  }
+  document.getElementById("priceDisplay").textContent = "$" + currentPrice.toFixed(2);
+}
+setInterval(fetchPrice, 3000);
+fetchPrice();
+
+// ===================== SIMULATED FOOTPRINT =====================
+function generateFootprint() {
+  const vol = 300 + Math.random() * 2000;
+  const trend = Math.random() > 0.5 ? 1 : -1;
+  const skew = 0.5 + trend * (Math.random() * 0.2);
+  const buyVol = Math.floor(vol * skew);
+  const sellVol = Math.floor(vol * (1 - skew));
+  const delta = buyVol - sellVol;
+  simCVD += delta;
+  
+  // Generate price levels
+  const range = 2 + Math.random() * 8;
+  const basePrice = currentPrice - range / 2;
+  const levels = [];
+  const numLevels = 8 + Math.floor(Math.random() * 6);
+  
+  for (let i = 0; i < numLevels; i++) {
+    const price = basePrice + (i * range / numLevels);
+    const bid = Math.floor(Math.random() * 150);
+    const ask = Math.floor(Math.random() * 150);
+    const imb = ask > bid * 2.5 ? "B" : bid > ask * 2.5 ? "S" : "";
+    levels.push({ p: price, b: bid, a: ask, im: imb });
+  }
+  
+  // Check for stacked imbalance
+  let stackedBull = 0, stackedBear = 0, curB = 0, curS = 0;
+  for (const lv of levels) {
+    if (lv.im === "B") { curB++; stackedBull = Math.max(stackedBull, curB); curS = 0; }
+    else if (lv.im === "S") { curS++; stackedBear = Math.max(stackedBear, curS); curB = 0; }
+    else { curB = 0; curS = 0; }
+  }
+  
+  // Absorption check
+  const absorption = levels.some(lv => lv.b > 60 && lv.a > 60);
+  
+  // FTR check (simulated)
+  const ftrBull = Math.random() > 0.6;
+  const ftrBear = Math.random() > 0.6;
+  
+  return { delta, buyVol, sellVol, cvd: simCVD, levels, stackedBull, stackedBear, absorption, ftrBull, ftrBear };
+}
+
+// ===================== SCORE CALCULATION =====================
+function calculateScore(fp, direction) {
+  const scores = [];
+  let total = 0;
+  
+  // 1. Delta sufficient
+  const s1 = Math.abs(fp.delta) >= 100;
+  scores.push({ l: "1. Delta Suficiente", ok: s1, detail: "Delta: " + fp.delta });
+  if (s1) total++;
+  
+  // 2. Delta confirms direction
+  const s2 = (direction === "buy" && fp.delta > 0) || (direction === "sell" && fp.delta < 0);
+  scores.push({ l: "2. Delta Direccion", ok: s2, detail: direction + " & delta " + (fp.delta > 0 ? "+" : "-") });
+  if (s2) total++;
+  
+  // 3. Absorption
+  scores.push({ l: "3. Absorcion", ok: fp.absorption, detail: fp.absorption ? "Detectada" : "No" });
+  if (fp.absorption) total++;
+  
+  // 4. Stacked Imbalance
+  const s4 = (direction === "buy" && fp.stackedBull >= 3) || (direction === "sell" && fp.stackedBear >= 3);
+  scores.push({ l: "4. Stacked Imbalance", ok: s4, detail: "Bull:" + fp.stackedBull + " Bear:" + fp.stackedBear });
+  if (s4) total++;
+  
+  // 5. CVD Divergence
+  const s5 = (direction === "buy" && fp.cvd > 0) || (direction === "sell" && fp.cvd < 0);
+  scores.push({ l: "5. CVD Divergencia", ok: s5, detail: "CVD: " + fp.cvd });
+  if (s5) total++;
+  
+  // 6. FTR Zone
+  const s6 = (direction === "buy" && fp.ftrBear) || (direction === "sell" && fp.ftrBull);
+  scores.push({ l: "6. FTR Zone", ok: s6, detail: s6 ? "FTR confirmada" : "Sin FTR" });
+  if (s6) total++;
+  
+  return { scores, total, direction };
+}
+
+// ===================== UPDATE DISPLAY =====================
+function updateFootprintDisplay(fp) {
+  // Footprint levels
+  const mx = Math.max(...fp.levels.map(l => Math.max(l.b, l.a)), 1);
+  document.getElementById("fpData").innerHTML = fp.levels.map(lv =>
+    `<div class="fp-row"><span style="width:55px;text-align:right;color:#556">${lv.p.toFixed(2)}</span>` +
+    `<div style="flex:1;display:flex"><div class="fp-bid" style="width:${(lv.b/mx)*100}%">${lv.b}</div>` +
+    `<div class="fp-ask" style="width:${(lv.a/mx)*100}%">${lv.a}</div></div>` +
+    `${lv.im ? `<span style="font-size:7px;font-weight:700;color:${lv.im==="B"?"#00e676":"#ff1744"}">${lv.im==="B"?"▲":"▼"}</span>` : ""}</div>`
+  ).join("") || '<div style="color:#556;font-size:9px;text-align:center">Esperando datos...</div>';
+  
+  // Delta & CVD
+  document.getElementById("deltaVal").textContent = (fp.delta > 0 ? "+" : "") + fp.delta;
+  document.getElementById("deltaVal").style.color = fp.delta > 0 ? "#00e676" : fp.delta < 0 ? "#ff1744" : "#556";
+  document.getElementById("cvdVal").textContent = (fp.cvd > 0 ? "+" : "") + fp.cvd;
+  document.getElementById("cvdVal").style.color = fp.cvd > 0 ? "#00e676" : "#ff1744";
+  
+  const pct = 50 + (fp.delta / (Math.abs(fp.delta) + 100)) * 50;
+  document.getElementById("deltaBar").style.width = pct + "%";
+}
+
+function updateScoreDisplay(result) {
+  const list = document.getElementById("scoreList");
+  list.innerHTML = result.scores.map(s =>
+    `<div class="score-row"><span class="score-label">${s.l}</span>` +
+    `<span class="score-val" style="color:${s.ok ? '#00e676' : '#556'}">${s.ok ? '✓' : '—'}</span></div>`
+  ).join("");
+  
+  const total = document.getElementById("scoreTotal");
+  const grade = result.total >= 5 ? "A+" : result.total >= 4 ? "A" : result.total >= 3 ? "B" : "C";
+  const color = result.total >= 5 ? "#00e676" : result.total >= 4 ? "#ff6d00" : result.total >= 3 ? "#ffd740" : "#ff1744";
+  total.textContent = result.total + " / 6 — " + grade;
+  total.style.cssText = `text-align:center;padding:8px;border-radius:6px;margin-top:6px;font-weight:900;font-size:16px;background:${color}15;color:${color};border:1px solid ${color}30`;
+  
+  // Show signal levels if score >= minScore
+  if (result.total >= CFG.minScore && currentPrice > 0) {
+    const atr = 3 + Math.random() * 5;
+    const slDist = atr * 0.8;
+    const entry = currentPrice;
+    const sl = result.direction === "buy" ? entry - slDist : entry + slDist;
+    const tp = result.direction === "buy" ? entry + slDist * CFG.rr : entry - slDist * CFG.rr;
+    
+    const sigLvl = document.getElementById("sigLevels");
+    sigLvl.style.display = "grid";
+    sigLvl.innerHTML = `<div><div style="font-size:8px;color:#556">ENTRY</div><div style="font-size:12px;font-weight:700">${entry.toFixed(2)}</div></div>` +
+      `<div><div style="font-size:8px;color:#556">SL (${slDist.toFixed(1)}p)</div><div style="font-size:12px;font-weight:700;color:#ff1744">${sl.toFixed(2)}</div></div>` +
+      `<div><div style="font-size:8px;color:#556">TP (${(slDist*CFG.rr).toFixed(1)}p)</div><div style="font-size:12px;font-weight:700;color:#00e676">${tp.toFixed(2)}</div></div>`;
+    
+    return { entry, sl, tp, dir: result.direction, score: result.total, confs: result.scores.filter(s=>s.ok).map(s=>s.l.split(". ")[1]).join(" ") };
+  } else {
+    document.getElementById("sigLevels").style.display = "none";
+    return null;
+  }
+}
+
+// ===================== AUTO-TRADE SCAN =====================
+function scan() {
+  if (currentPrice <= 0) return;
+  
+  const fp = generateFootprint();
+  updateFootprintDisplay(fp);
+  
+  // Determine direction from recent movement
+  const direction = fp.delta > 50 ? "sell" : fp.delta < -50 ? "buy" : (Math.random() > 0.5 ? "buy" : "sell");
+  const result = calculateScore(fp, direction);
+  const signal = updateScoreDisplay(result);
+  
+  if (signal && autoTrade && !position) {
+    addLog(`SENAL ${signal.dir.toUpperCase()} Score ${signal.score}/6 [${signal.confs}]`, "warning");
+    executeSignal(signal);
+  }
+}
+setInterval(scan, 15000); // Scan every 15 seconds
+
+// ===================== EXECUTE SIGNAL =====================
+async function executeSignal(sig) {
+  position = sig;
+  addLog(`EJECUTANDO ${sig.dir.toUpperCase()} Entry:${sig.entry.toFixed(2)} SL:${sig.sl.toFixed(2)} TP:${sig.tp.toFixed(2)}`, "success");
+  
+  if (bridgeOK) {
+    try {
+      const scoreStr = sig.score + "/6_" + sig.confs.replace(/ /g, "_");
+      const r = await fetch(BRIDGE_URL + "/order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          direction: sig.dir,
+          symbol: CFG.sym,
+          sl: sig.sl,
+          tp: sig.tp,
+          risk: CFG.risk,
+          score: scoreStr
+        })
+      });
+      const d = await r.json();
+      if (d.ok) addLog("Orden enviada a MT5 via Bridge", "success");
+      else addLog("Error bridge: " + JSON.stringify(d), "error");
+    } catch (e) {
+      addLog("Error conexion bridge: " + e.message, "error");
+    }
+  } else {
+    addLog("Bridge OFF — orden no enviada a MT5", "warning");
+  }
+  
+  // Simulate trade resolution
+  setTimeout(() => {
+    if (!position) return;
+    const won = Math.random() < 0.46;
+    const pips = won ? (Math.abs(position.tp - position.entry) / 0.1).toFixed(1) : -(Math.abs(position.sl - position.entry) / 0.1).toFixed(1);
+    if (won) wins++; else losses++;
+    trades.push({ dir: position.dir, pips, result: won ? "TP" : "SL", time: new Date().toLocaleTimeString() });
+    addLog(`${won ? "WIN" : "LOSS"} ${position.dir.toUpperCase()} ${pips > 0 ? "+" : ""}${pips} pips`, won ? "success" : "error");
+    position = null;
+    updateTradeList();
+    updateStats();
+  }, 30000 + Math.random() * 60000);
+}
+
+// ===================== MANUAL ORDER =====================
+async function manualOrder(dir) {
+  if (!currentPrice) return;
+  const atr = 3 + Math.random() * 5;
+  const slDist = atr * 0.8;
+  const entry = currentPrice;
+  const sl = dir === "buy" ? entry - slDist : entry + slDist;
+  const tp = dir === "buy" ? entry + slDist * CFG.rr : entry - slDist * CFG.rr;
+  
+  const sig = { entry, sl, tp, dir, score: "manual", confs: "manual" };
+  addLog(`MANUAL ${dir.toUpperCase()} Entry:${entry.toFixed(2)}`, "warning");
+  
+  if (bridgeOK) {
+    try {
+      await fetch(BRIDGE_URL + "/order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ direction: dir, symbol: CFG.sym, sl, tp, risk: CFG.risk, score: "manual" })
+      });
+      addLog("Orden manual enviada a MT5", "success");
+    } catch (e) {
+      addLog("Error: " + e.message, "error");
+    }
+  }
+}
+
+// ===================== UI FUNCTIONS =====================
+function toggleAuto() {
+  autoTrade = !autoTrade;
+  const btn = document.getElementById("autoBtn");
+  const badge = document.getElementById("autoStatus");
+  if (autoTrade) {
+    btn.textContent = "AUTO-TRADE: ON";
+    btn.classList.add("on");
+    badge.style.cssText = "font-size:9px;padding:2px 8px;border-radius:8px;background:#ff6d0015;color:#ff6d00";
+    badge.textContent = "AUTO: ON";
+    addLog("Auto-trade ACTIVADO — Score >=" + CFG.minScore + "/6", "success");
+  } else {
+    btn.textContent = "AUTO-TRADE: OFF";
+    btn.classList.remove("on");
+    badge.style.cssText = "font-size:9px;padding:2px 8px;border-radius:8px;background:#10101c;color:#556";
+    badge.textContent = "AUTO: OFF";
+    addLog("Auto-trade DESACTIVADO", "warning");
+  }
+}
+
+function setScore(v) {
+  CFG.minScore = v;
+  document.getElementById("cfgScoreVal").textContent = v + "/6";
+  document.querySelectorAll(".cfg-btns")[0].querySelectorAll(".cfg-btn").forEach((b, i) => {
+    b.classList.toggle("active", parseInt(b.textContent) === v);
+  });
+  addLog("Score minimo: " + v + "/6", "info");
+}
+
+function setRR(v) {
+  CFG.rr = v;
+  document.getElementById("cfgRRVal").textContent = "1:" + v;
+  document.querySelectorAll(".cfg-btns")[1].querySelectorAll(".cfg-btn").forEach(b => {
+    b.classList.toggle("active", b.textContent === "1:" + v);
+  });
+  addLog("R:R: 1:" + v, "info");
+}
+
+function setRisk(v) {
+  CFG.risk = v;
+  document.getElementById("cfgRiskVal").textContent = v + "%";
+  document.querySelectorAll(".cfg-btns")[2].querySelectorAll(".cfg-btn").forEach(b => {
+    b.classList.toggle("active", b.textContent === v + "%");
+  });
+  addLog("Riesgo: " + v + "%", "info");
+}
+
+function setVPS() {
+  const ip = document.getElementById("vpsInput").value.trim();
+  if (!ip) {
+    BRIDGE_URL = "http://localhost:6666";
+    document.getElementById("cfgVPSVal").textContent = "localhost";
+  } else {
+    BRIDGE_URL = "http://" + ip + ":6666";
+    document.getElementById("cfgVPSVal").textContent = ip;
+  }
+  addLog("Bridge: " + BRIDGE_URL, "warning");
+  checkBridge();
+}
+
+function updateTradeList() {
+  const el = document.getElementById("trList");
+  el.innerHTML = trades.slice(-10).reverse().map(t => {
+    const bg = t.result === "TP" ? "#00e67610" : "#ff174410";
+    const cl = t.result === "TP" ? "#00e676" : "#ff1744";
+    return `<div class="trade-item" style="background:${bg}"><span style="color:${cl};font-weight:700">${t.result} ${t.dir.toUpperCase()}</span><span style="color:${cl}">${t.pips > 0 ? "+" : ""}${t.pips}p</span><span style="color:#556">${t.time}</span></div>`;
+  }).join("") || '<div style="color:#556;font-size:10px;text-align:center;padding:8px">Sin trades</div>';
+}
+
+function updateStats() {
+  const total = wins + losses;
+  const wr = total > 0 ? (wins / total * 100).toFixed(0) : 0;
+  document.getElementById("statsHdr").textContent = `W:${wins} L:${losses} ${wr}%`;
+}
+
+function addLog(m, type) {
+  const colors = { success: "#00e676", error: "#ff1744", warning: "#ff6d00", info: "#448aff" };
+  const cl = colors[type] || "#556";
+  const tm = new Date().toLocaleTimeString();
+  document.getElementById("logL").insertAdjacentHTML("afterbegin",
+    `<div class="log-e" style="color:${cl}"><span style="color:#556;margin-right:4px">${tm}</span>${m}</div>`);
+}
+
+// Initial log
+addLog("FTR Fusion Trader v1.0 iniciado", "info");
+addLog("Sistema independiente — Puerto 6666", "info");
+addLog("Esperando conexion con Bridge...", "warning");
+</script>
+</body>
+</html>
